@@ -1,6 +1,7 @@
 import { Product } from './Product';
 import { IEvents } from './base/events';
 import { ensureElement } from '../utils/utils';
+import { getCategoryClassName } from '../utils/categoryUtils';
 
 export class CardProduct extends Product {
 	protected elements!: {
@@ -13,8 +14,7 @@ export class CardProduct extends Product {
 	constructor(container: HTMLElement, events: IEvents) {
 		super(container, events);
 		this.elements = {
-			title: ensureElement<HTMLElement>('.card__title', this.container),
-			price: ensureElement<HTMLElement>('.card__price', this.container),
+			...this.elements,
 			image: ensureElement<HTMLImageElement>('.card__image', this.container),
 			category: ensureElement<HTMLElement>('.card__category', this.container),
 		};
@@ -28,14 +28,15 @@ export class CardProduct extends Product {
 
 	set category(value: string) {
 		this.setText(this.elements.category, value);
-		const categoryClass = this.getCategoryClassName(value);
-		const classList = this.elements.category.classList;
-		Array.from(classList)
-			.filter((cls) => cls.startsWith('card__category_'))
-			.forEach((cls) => classList.remove(cls));
-		classList.add(categoryClass);
-	}
+		const categoryClass = getCategoryClassName(value);
 
+		Array.from(this.elements.category.classList)
+			.filter((cls) => cls.startsWith('card__category_'))
+			.forEach((cls) => {
+				this.toggleClass(this.elements.category, cls, false);
+			});
+		this.toggleClass(this.elements.category, categoryClass, true);
+	}
 	bindCardClick(): void {
 		this.container.addEventListener('click', () => {
 			this.events.emit('card:click', { id: this.container.dataset.id });
@@ -50,10 +51,15 @@ export class CardProduct extends Product {
 		category: string;
 	}): HTMLElement {
 		this.container.dataset.id = data.id;
-		this.title = data.title;
-		this.price = data.price;
+
+		super.render({
+			title: data.title,
+			price: data.price,
+		});
+
 		this.image = data.image;
 		this.category = data.category;
+
 		return this.container;
 	}
 }

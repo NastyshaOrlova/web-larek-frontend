@@ -10,7 +10,7 @@ import {
 
 export class AppState extends Model<IAppState> {
 	protected catalog: IProduct[];
-	basket: IProduct[];
+	protected basket: IProduct[];
 	protected order: IOrder;
 	protected preview: string | null;
 	protected formErrors: IFormErrors;
@@ -50,24 +50,31 @@ export class AppState extends Model<IAppState> {
 		this.emitChanges('order:step', { step: this.orderStep });
 	}
 
-	getData(): IAppState {
-		return {
-			catalog: this.catalog,
-			basket: this.basket,
-			order: this.order,
-			preview: this.preview,
-			formErrors: this.formErrors,
-			orderStep: this.orderStep,
-		};
+	getBasket(): IProduct[] {
+		return [...this.basket];
+	}
+
+	getOrder(): IOrder {
+		return { ...this.order };
+	}
+
+	getOrderStep(): OrderStep {
+		return this.orderStep;
 	}
 
 	clearOrder(): void {
+		const payment = this.order.payment;
+		const address = this.order.address;
+		const email = this.order.email;
+		const phone = this.order.phone;
+
 		this.order = {
-			payment: '',
-			address: '',
-			email: '',
-			phone: '',
+			payment: payment,
+			address: address,
+			email: email,
+			phone: phone,
 		};
+
 		this.formErrors = {};
 		this.emitChanges('order:changed', { order: this.order });
 	}
@@ -94,8 +101,21 @@ export class AppState extends Model<IAppState> {
 
 	setOrderField(field: keyof IOrder, value: string): void {
 		this.order[field] = value;
-		this.validateOrder();
-		this.emitChanges('order:changed', { order: this.order });
+		const errors = this.validateOrder();
+		this.emitChanges('order:changed', {
+			order: this.order,
+			errors: errors,
+			field: field,
+		});
+	}
+
+	clearBasket(): void {
+		this.basket = [];
+		this.emitChanges('basket:changed', { basket: this.basket });
+	}
+
+	getFormErrors(): IFormErrors {
+		return { ...this.formErrors };
 	}
 
 	validateOrder(): boolean {
@@ -106,23 +126,16 @@ export class AppState extends Model<IAppState> {
 		}
 
 		if (!this.order.payment) {
-			errors.payment = 'Необходимо выбрать способ оплаты';
+			errors.payment = '';
 		}
 
-		if (!this.order.email) {
-			errors.email = 'Необходимо указать email';
-		} else if (!/^[\w.%+-]+@[\w.-]+\.[A-Za-z]{2,}$/i.test(this.order.email)) {
-			errors.email = 'Некорректный email';
-		}
-
-		if (!this.order.phone) {
-			errors.phone = 'Необходимо указать телефон';
-		} else if (!/^\+?[0-9]{10,15}$/.test(this.order.phone.replace(/\D/g, ''))) {
-			errors.phone = 'Некорректный телефон';
+		if (!this.order.email || !this.order.phone) {
+			errors.email = errors.phone = 'Заполните все поля';
 		}
 
 		this.formErrors = errors;
 		this.emitChanges('formErrors:changed', { errors: this.formErrors });
+
 		return Object.keys(errors).length === 0;
 	}
 }

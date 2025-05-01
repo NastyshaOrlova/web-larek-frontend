@@ -17,36 +17,41 @@ export class Basket extends Component<{}> {
 		this.elements.button.addEventListener('click', this.checkout.bind(this));
 	}
 
-	render(data?: { items?: IProduct[]; total?: number }): HTMLElement {
-		if (data?.items) {
+	renderItems(
+		products: IProduct[],
+		itemComponentSelector: string
+	): HTMLElement[] {
+		return products.map((item) => {
+			const itemComponent = new BasketItemProduct(
+				cloneTemplate(itemComponentSelector),
+				this.events
+			);
+			return itemComponent.render({
+				id: item.id,
+				title: item.title,
+				price: item.price || 0,
+			});
+		});
+	}
+
+	render(data?: {
+		products?: IProduct[];
+		total?: number;
+		itemComponent?: string;
+	}): HTMLElement {
+		if (data?.products && data?.itemComponent) {
 			this.elements.list.innerHTML = '';
-			data.items.forEach((item) => {
-				const basketItemTemplate = '#card-basket';
-				const basketItem = new BasketItemProduct(
-					cloneTemplate(basketItemTemplate),
-					this.events
-				);
-
-				const element = basketItem.render({
-					id: item.id,
-					title: item.title,
-					price: item.price || 0,
-				});
-
+			const itemElements = this.renderItems(data.products, data.itemComponent);
+			itemElements.forEach((element) => {
 				this.elements.list.append(element);
 			});
 		}
 
 		if (data?.total !== undefined) {
 			this.elements.total.textContent = `${data.total} синапсов`;
-			const hasItems = (data?.items || []).length > 0;
+			const hasItems = (data?.products || []).length > 0;
 			const hasPositiveTotal = (data?.total || 0) > 0;
 			this.elements.button.disabled = !hasItems || !hasPositiveTotal;
-			if (hasItems && !hasPositiveTotal) {
-				console.log(
-					'В корзине есть товары, но общая сумма равна 0. Кнопка оформления неактивна.'
-				);
-			}
 		}
 
 		return this.container;

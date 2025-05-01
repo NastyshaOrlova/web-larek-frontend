@@ -1,26 +1,34 @@
 import { Product } from './Product';
 import { IEvents } from './base/events';
 import { ensureElement } from '../utils/utils';
+import { getCategoryClassName } from '../utils/categoryUtils';
 
 export class DetailProduct extends Product {
-	protected elements = {
-		title: ensureElement<HTMLElement>('.card__title', this.container),
-		price: ensureElement<HTMLElement>('.card__price', this.container),
-		image: ensureElement<HTMLImageElement>('.card__image', this.container),
-		description: ensureElement<HTMLElement>('.card__text', this.container),
-		category: ensureElement<HTMLElement>('.card__category', this.container),
-		buttonAdd: ensureElement<HTMLButtonElement>(
-			'.card__button',
-			this.container
-		),
+	protected elements!: {
+		title: HTMLElement;
+		price: HTMLElement;
+		image: HTMLImageElement;
+		description: HTMLElement;
+		category: HTMLElement;
+		buttonAdd: HTMLButtonElement;
 	};
-
-	private inBasket: boolean = false;
 
 	constructor(container: HTMLElement, events: IEvents) {
 		super(container, events);
+		this.elements = {
+			...this.elements,
+			image: ensureElement<HTMLImageElement>('.card__image', this.container),
+			description: ensureElement<HTMLElement>('.card__text', this.container),
+			category: ensureElement<HTMLElement>('.card__category', this.container),
+			buttonAdd: ensureElement<HTMLButtonElement>(
+				'.card__button',
+				this.container
+			),
+		};
 		this.bindButtonClick();
 	}
+
+	private inBasket: boolean = false;
 
 	set image(src: string) {
 		this.setImage(this.elements.image, src);
@@ -32,18 +40,24 @@ export class DetailProduct extends Product {
 
 	set category(value: string) {
 		this.setText(this.elements.category, value);
-		const categoryClass = this.getCategoryClassName(value);
-		this.elements.category.className = 'card__category ' + categoryClass;
+		const categoryClass = getCategoryClassName(value);
+
+		Array.from(this.elements.category.classList)
+			.filter((cls) => cls.startsWith('card__category_'))
+			.forEach((cls) => {
+				this.toggleClass(this.elements.category, cls, false);
+			});
+		this.toggleClass(this.elements.category, categoryClass, true);
 	}
 
 	setButtonStatus(inBasket: boolean): void {
 		this.inBasket = inBasket;
 		if (inBasket) {
 			this.elements.buttonAdd.textContent = 'В корзину';
-			this.elements.buttonAdd.classList.add('button_in-basket');
+			this.toggleClass(this.elements.buttonAdd, 'button_in-basket', inBasket);
 		} else {
 			this.elements.buttonAdd.textContent = 'Купить';
-			this.elements.buttonAdd.classList.remove('button_in-basket');
+			this.toggleClass(this.elements.buttonAdd, 'button_in-basket', inBasket);
 		}
 	}
 
@@ -52,17 +66,15 @@ export class DetailProduct extends Product {
 			event.stopPropagation();
 
 			if (this.inBasket) {
-				// Если товар уже в корзине - открываем корзину
-				this.events.emit('basket:open');
-				// Закрываем текущее модальное окно
 				this.events.emit('modal:close');
+				setTimeout(() => {
+					this.events.emit('basket:open');
+				}, 100);
+				this.events.emit('basket:open');
 			} else {
-				// Если товара еще нет в корзине - добавляем его
-				// Важно: здесь нужно использовать то же событие, что и в обработчике
 				this.events.emit('product:button-click', {
 					id: this.container.dataset.id,
 				});
-				// Меняем состояние кнопки
 				this.setButtonStatus(true);
 			}
 		});
@@ -78,12 +90,15 @@ export class DetailProduct extends Product {
 		inBasket?: boolean;
 	}): HTMLElement {
 		this.container.dataset.id = data.id;
-		this.title = data.title;
-		this.price = data.price;
+
+		super.render({
+			title: data.title,
+			price: data.price,
+		});
+
 		this.image = data.image;
 		this.category = data.category;
 		this.description = data.description;
-
 		this.setButtonStatus(Boolean(data.inBasket));
 
 		return this.container;

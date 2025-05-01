@@ -30,6 +30,7 @@ const basketTemplate = '#basket';
 const orderTemplate = '#order';
 const contactsTemplate = '#contacts';
 const successTemplate = '#success';
+const basketItemTemplate = '#card-basket';
 
 const page = new Page(document.querySelector('.page') as HTMLElement, events);
 const modal = new Modal(
@@ -77,7 +78,9 @@ events.on('card:click', (data: { id: string }) => {
 });
 
 events.on('preview:changed', (product: IProduct) => {
-	const isInBasket = appState.basket.some((item) => item.id === product.id);
+	const isInBasket = appState
+		.getBasket()
+		.some((item) => item.id === product.id);
 
 	const detailElement = detailProduct.render({
 		id: product.id,
@@ -112,52 +115,57 @@ events.on('basket:changed', (data: { basket: IProduct[] }) => {
 	if (modal.isOpen() && modal.hasBasket()) {
 		modal.setContent(
 			basket.render({
-				items: data.basket,
+				products: data.basket,
 				total: appState.getTotal(),
+				itemComponent: basketItemTemplate,
 			})
 		);
 	}
+});
+
+events.on('basket:open', () => {
+	if (!modal.hasBasket()) {
+		const basketItems = appState.getBasket();
+		modal.setContent(
+			basket.render({
+				products: basketItems,
+				total: appState.getTotal(),
+				itemComponent: basketItemTemplate,
+			})
+		);
+	}
+	modal.open();
 });
 
 events.on('basket:remove', (data: { id: string }) => {
 	appState.removeFromBasket(data.id);
 });
 
-events.on('basket:open', () => {
-	const basketItems = appState.basket || [];
-	modal.setContent(
-		basket.render({
-			items: basketItems,
-			total: appState.getTotal(),
-		})
-	);
-	modal.open();
-});
-
-const basketButton = document.querySelector('.header__basket');
-if (basketButton) {
-	basketButton.addEventListener('click', () => {
-		const basketItems = appState.basket || [];
-		modal.setContent(
-			basket.render({
-				items: basketItems,
-				total: appState.getTotal(),
-			})
-		);
-
-		modal.open();
-	});
-}
-
 events.on('basket:checkout', () => {
 	appState.setOrderStep('order');
-	const isValid = appState.validateOrder();
+	const currentOrder = appState.getOrder();
+	appState.validateOrder();
+
 	modal.setContent(
 		orderForm.render({
-			valid: isValid,
-			errors: [],
+			payment: currentOrder.payment,
+			address: currentOrder.address,
+			valid: !!(currentOrder.payment && currentOrder.address),
+			errors: appState.getFormErrors().address || '',
 		})
 	);
+});
+
+events.on('order:changed', (data: { order: IOrder }) => {
+	const currentStep = appState.getOrderStep();
+	if (currentStep === 'order') {
+		orderForm.render({
+			payment: data.order.payment,
+			address: data.order.address,
+			valid: !!(data.order.payment && data.order.address),
+			errors: appState.getFormErrors().address || '',
+		});
+	}
 });
 
 events.on('order.payment:change', (data: { field: string; value: string }) => {
@@ -178,30 +186,29 @@ events.on('contacts.phone:change', (data: { field: string; value: string }) => {
 
 events.on('formErrors:changed', (data: { errors: Record<string, string> }) => {
 	const { errors } = data;
-	const currentStep = appState.getData().orderStep;
+	const currentStep = appState.getOrderStep();
+
 	if (currentStep === 'order') {
-		const errorMessages = [];
-		if (errors.address) errorMessages.push(errors.address);
-		if (errors.payment) errorMessages.push(errors.payment);
-
 		orderForm.valid = !errors.address && !errors.payment;
-		orderForm.errors = errorMessages.join(', ');
+		orderForm.errors = errors.address || '';
 	} else if (currentStep === 'contacts') {
-		const errorMessages = [];
-		if (errors.email) errorMessages.push(errors.email);
-		if (errors.phone) errorMessages.push(errors.phone);
-
 		contactsForm.valid = !errors.email && !errors.phone;
-		contactsForm.errors = errorMessages.join(', ');
+		contactsForm.errors = errors.email || '';
 	}
 });
 
 events.on('order:submit', () => {
 	appState.setOrderStep('contacts');
+	const currentOrder = appState.getOrder();
+
+	appState.validateOrder();
+
 	modal.setContent(
 		contactsForm.render({
-			valid: false,
-			errors: [],
+			email: currentOrder.email,
+			phone: currentOrder.phone,
+			valid: !!(currentOrder.email && currentOrder.phone),
+			errors: '',
 		})
 	);
 });
@@ -210,12 +217,16 @@ events.on('contacts:submit', () => {
 	if (appState.validateOrder()) {
 		appState.setOrderStep('success');
 
+		const itemsWithPrice = appState
+			.getBasket()
+			.filter((item) => item.price !== null);
+
 		const order = {
-			payment: appState.getData().order.payment,
-			address: appState.getData().order.address,
-			email: appState.getData().order.email,
-			phone: appState.getData().order.phone,
-			items: appState.basket.map((item) => item.id),
+			payment: appState.getOrder().payment,
+			address: appState.getOrder().address,
+			email: appState.getOrder().email,
+			phone: appState.getOrder().phone,
+			items: itemsWithPrice.map((item) => item.id),
 			total: appState.getTotal(),
 		};
 
@@ -224,16 +235,12 @@ events.on('contacts:submit', () => {
 			.then((result) => {
 				modal.setContent(
 					success.render({
-						order: appState.getData().order,
+						order: appState.getOrder(),
 						total: result.total,
 					})
 				);
 
-				const basketItems = [...appState.basket];
-				basketItems.forEach((item) => {
-					appState.removeFromBasket(item.id);
-				});
-
+				appState.clearBasket();
 				appState.clearOrder();
 			})
 			.catch((error) => {

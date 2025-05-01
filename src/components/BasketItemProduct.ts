@@ -13,8 +13,7 @@ export class BasketItemProduct extends Product {
 		super(container, events);
 
 		this.elements = {
-			title: ensureElement<HTMLElement>('.card__title', this.container),
-			price: ensureElement<HTMLElement>('.card__price', this.container),
+			...this.elements,
 			deleteButton: ensureElement<HTMLButtonElement>(
 				'.basket__item-delete',
 				this.container
@@ -33,8 +32,12 @@ export class BasketItemProduct extends Product {
 
 	render(data: { id: string; title: string; price: number }): HTMLElement {
 		this.container.dataset.id = data.id;
-		this.title = data.title;
-		this.price = data.price;
+
+		super.render({
+			title: data.title,
+			price: data.price,
+		});
+
 		return this.container;
 	}
 }

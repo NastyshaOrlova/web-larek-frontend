@@ -23,10 +23,6 @@ export class OrderForm extends Form<IOrderFormData> {
 
 		this.elements.payment.forEach((button) => {
 			button.addEventListener('click', () => {
-				this.elements.payment.forEach((btn) =>
-					btn.classList.remove('button_alt-active')
-				);
-				button.classList.add('button_alt-active');
 				this.onInputChange('payment', button.name);
 			});
 		});
