@@ -108,46 +108,24 @@ events.on('product:button-click', (data: { id: string }) => {
 
 events.on('basket:changed', (data: { basket: IProduct[] }) => {
 	page.setBasketCounter(data.basket.length);
-	if (modal.isOpen() && modal.hasBasket()) {
-		basket.render({
-			items: data.basket.map((item) => {
-				const basketItem = new BasketItemProduct(
-					cloneTemplate(basketItemTemplate),
-					events
-				);
-				return basketItem.render({
-					id: item.id,
-					title: item.title,
-					price: item.price,
-				});
-			}),
-			total: appState.getTotal(),
-		});
-	}
+	basket.render({
+		items: data.basket.map((item) => {
+			const basketItem = new BasketItemProduct(
+				cloneTemplate(basketItemTemplate),
+				events
+			);
+			return basketItem.render({
+				id: item.id,
+				title: item.title,
+				price: item.price,
+			});
+		}),
+		total: appState.getTotal(),
+	});
 });
 
 events.on('basket:open', () => {
-	const basketItems = appState.getBasket();
-
-	if (!modal.hasBasket()) {
-		modal.setContent(
-			basket.render({
-				items: basketItems.map((item) => {
-					const basketItem = new BasketItemProduct(
-						cloneTemplate(basketItemTemplate),
-						events
-					);
-					return basketItem.render({
-						id: item.id,
-						title: item.title,
-						price: item.price,
-					});
-				}),
-				total: appState.getTotal(),
-			})
-		);
-	}
-
+	modal.setContent(basket.render());
 	modal.open();
 });
 
