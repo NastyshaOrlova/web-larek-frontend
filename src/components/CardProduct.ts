@@ -4,38 +4,37 @@ import { ensureElement } from '../utils/utils';
 import { getCategoryClassName } from '../utils/categoryUtils';
 
 export class CardProduct extends Product {
-	protected elements!: {
-		title: HTMLElement;
-		price: HTMLElement;
-		image: HTMLImageElement;
-		category: HTMLElement;
-	};
+	protected imageElement: HTMLImageElement;
+	protected categoryElement: HTMLElement;
 
 	constructor(container: HTMLElement, events: IEvents) {
 		super(container, events);
-		this.elements = {
-			...this.elements,
-			image: ensureElement<HTMLImageElement>('.card__image', this.container),
-			category: ensureElement<HTMLElement>('.card__category', this.container),
-		};
+		this.imageElement = ensureElement<HTMLImageElement>(
+			'.card__image',
+			this.container
+		);
+		this.categoryElement = ensureElement<HTMLElement>(
+			'.card__category',
+			this.container
+		);
 
 		this.bindCardClick();
 	}
 
 	set image(src: string) {
-		this.setImage(this.elements.image, src);
+		this.setImage(this.imageElement, src);
 	}
 
 	set category(value: string) {
-		this.setText(this.elements.category, value);
+		this.setText(this.categoryElement, value);
 		const categoryClass = getCategoryClassName(value);
 
-		Array.from(this.elements.category.classList)
+		Array.from(this.categoryElement.classList)
 			.filter((cls) => cls.startsWith('card__category_'))
 			.forEach((cls) => {
-				this.toggleClass(this.elements.category, cls, false);
+				this.toggleClass(this.categoryElement, cls, false);
 			});
-		this.toggleClass(this.elements.category, categoryClass, true);
+		this.toggleClass(this.categoryElement, categoryClass, true);
 	}
 	bindCardClick(): void {
 		this.container.addEventListener('click', () => {

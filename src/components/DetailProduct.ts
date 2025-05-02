@@ -4,65 +4,68 @@ import { ensureElement } from '../utils/utils';
 import { getCategoryClassName } from '../utils/categoryUtils';
 
 export class DetailProduct extends Product {
-	protected elements!: {
-		title: HTMLElement;
-		price: HTMLElement;
-		image: HTMLImageElement;
-		description: HTMLElement;
-		category: HTMLElement;
-		buttonAdd: HTMLButtonElement;
-	};
+	protected imageElement: HTMLImageElement;
+	protected categoryElement: HTMLElement;
+	protected descriptionElement: HTMLElement;
+	protected buttonAddElement: HTMLButtonElement;
 
 	constructor(container: HTMLElement, events: IEvents) {
 		super(container, events);
-		this.elements = {
-			...this.elements,
-			image: ensureElement<HTMLImageElement>('.card__image', this.container),
-			description: ensureElement<HTMLElement>('.card__text', this.container),
-			category: ensureElement<HTMLElement>('.card__category', this.container),
-			buttonAdd: ensureElement<HTMLButtonElement>(
+
+		(this.imageElement = ensureElement<HTMLImageElement>(
+			'.card__image',
+			this.container
+		)),
+			(this.descriptionElement = ensureElement<HTMLElement>(
+				'.card__text',
+				this.container
+			)),
+			(this.categoryElement = ensureElement<HTMLElement>(
+				'.card__category',
+				this.container
+			)),
+			(this.buttonAddElement = ensureElement<HTMLButtonElement>(
 				'.card__button',
 				this.container
-			),
-		};
-		this.bindButtonClick();
+			)),
+			this.bindButtonClick();
 	}
 
 	private inBasket: boolean = false;
 
 	set image(src: string) {
-		this.setImage(this.elements.image, src);
+		this.setImage(this.imageElement, src);
 	}
 
 	set description(value: string) {
-		this.setText(this.elements.description, value);
+		this.setText(this.descriptionElement, value);
 	}
 
 	set category(value: string) {
-		this.setText(this.elements.category, value);
+		this.setText(this.categoryElement, value);
 		const categoryClass = getCategoryClassName(value);
 
-		Array.from(this.elements.category.classList)
+		Array.from(this.categoryElement.classList)
 			.filter((cls) => cls.startsWith('card__category_'))
 			.forEach((cls) => {
-				this.toggleClass(this.elements.category, cls, false);
+				this.toggleClass(this.categoryElement, cls, false);
 			});
-		this.toggleClass(this.elements.category, categoryClass, true);
+		this.toggleClass(this.categoryElement, categoryClass, true);
 	}
 
 	setButtonStatus(inBasket: boolean): void {
 		this.inBasket = inBasket;
 		if (inBasket) {
-			this.elements.buttonAdd.textContent = 'В корзину';
-			this.toggleClass(this.elements.buttonAdd, 'button_in-basket', inBasket);
+			this.buttonAddElement.textContent = 'В корзину';
+			this.toggleClass(this.buttonAddElement, 'button_in-basket', inBasket);
 		} else {
-			this.elements.buttonAdd.textContent = 'Купить';
-			this.toggleClass(this.elements.buttonAdd, 'button_in-basket', inBasket);
+			this.buttonAddElement.textContent = 'Купить';
+			this.toggleClass(this.buttonAddElement, 'button_in-basket', inBasket);
 		}
 	}
 
 	bindButtonClick(): void {
-		this.elements.buttonAdd.addEventListener('click', (event) => {
+		this.buttonAddElement.addEventListener('click', (event) => {
 			event.stopPropagation();
 
 			if (this.inBasket) {

@@ -13,6 +13,7 @@ import { Basket } from './components/Basket';
 import { OrderForm } from './components/OrderForm';
 import { ContactsForm } from './components/ContactsForm';
 import { Success } from './components/Success';
+import { BasketItemProduct } from './components/BasketItemProduct';
 
 const events = new EventEmitter();
 const api = new LarekAPI(CDN_URL, API_URL);
@@ -38,22 +39,18 @@ const modal = new Modal(
 	events
 );
 const basket = new Basket(cloneTemplate(basketTemplate), events);
-
 const detailProduct = new DetailProduct(
 	cloneTemplate(cardPreviewTemplate),
 	events
 );
-
 const orderForm = new OrderForm(
 	cloneTemplate(orderTemplate) as HTMLFormElement,
 	events
 );
-
 const contactsForm = new ContactsForm(
 	cloneTemplate(contactsTemplate) as HTMLFormElement,
 	events
 );
-
 const success = new Success(cloneTemplate(successTemplate), events);
 
 // ---- Обработчики событий ----
@@ -111,29 +108,46 @@ events.on('product:button-click', (data: { id: string }) => {
 
 events.on('basket:changed', (data: { basket: IProduct[] }) => {
 	page.setBasketCounter(data.basket.length);
-
 	if (modal.isOpen() && modal.hasBasket()) {
-		modal.setContent(
-			basket.render({
-				products: data.basket,
-				total: appState.getTotal(),
-				itemComponent: basketItemTemplate,
-			})
-		);
+		basket.render({
+			items: data.basket.map((item) => {
+				const basketItem = new BasketItemProduct(
+					cloneTemplate(basketItemTemplate),
+					events
+				);
+				return basketItem.render({
+					id: item.id,
+					title: item.title,
+					price: item.price,
+				});
+			}),
+			total: appState.getTotal(),
+		});
 	}
 });
 
 events.on('basket:open', () => {
+	const basketItems = appState.getBasket();
+
 	if (!modal.hasBasket()) {
-		const basketItems = appState.getBasket();
 		modal.setContent(
 			basket.render({
-				products: basketItems,
+				items: basketItems.map((item) => {
+					const basketItem = new BasketItemProduct(
+						cloneTemplate(basketItemTemplate),
+						events
+					);
+					return basketItem.render({
+						id: item.id,
+						title: item.title,
+						price: item.price,
+					});
+				}),
 				total: appState.getTotal(),
-				itemComponent: basketItemTemplate,
 			})
 		);
 	}
+
 	modal.open();
 });
 
@@ -163,7 +177,10 @@ events.on('order:changed', (data: { order: IOrder }) => {
 			payment: data.order.payment,
 			address: data.order.address,
 			valid: !!(data.order.payment && data.order.address),
-			errors: appState.getFormErrors().address || '',
+			errors:
+				appState.getFormErrors().address ||
+				appState.getFormErrors().payment ||
+				'',
 		});
 	}
 });
@@ -190,7 +207,13 @@ events.on('formErrors:changed', (data: { errors: Record<string, string> }) => {
 
 	if (currentStep === 'order') {
 		orderForm.valid = !errors.address && !errors.payment;
-		orderForm.errors = errors.address || '';
+		if (errors.address) {
+			orderForm.errors = errors.address;
+		} else if (errors.payment) {
+			orderForm.errors = errors.payment;
+		} else {
+			orderForm.errors = '';
+		}
 	} else if (currentStep === 'contacts') {
 		contactsForm.valid = !errors.email && !errors.phone;
 		contactsForm.errors = errors.email || '';
@@ -208,45 +231,42 @@ events.on('order:submit', () => {
 			email: currentOrder.email,
 			phone: currentOrder.phone,
 			valid: !!(currentOrder.email && currentOrder.phone),
-			errors: '',
+			errors: appState.getFormErrors().email || '',
 		})
 	);
 });
 
 events.on('contacts:submit', () => {
-	if (appState.validateOrder()) {
-		appState.setOrderStep('success');
+	appState.setOrderStep('success');
+	const itemsWithPrice = appState
+		.getBasket()
+		.filter((item) => item.price !== null);
 
-		const itemsWithPrice = appState
-			.getBasket()
-			.filter((item) => item.price !== null);
+	const order = {
+		payment: appState.getOrder().payment,
+		address: appState.getOrder().address,
+		email: appState.getOrder().email,
+		phone: appState.getOrder().phone,
+		items: itemsWithPrice.map((item) => item.id),
+		total: appState.getTotal(),
+	};
 
-		const order = {
-			payment: appState.getOrder().payment,
-			address: appState.getOrder().address,
-			email: appState.getOrder().email,
-			phone: appState.getOrder().phone,
-			items: itemsWithPrice.map((item) => item.id),
-			total: appState.getTotal(),
-		};
+	api
+		.orderProducts(order)
+		.then((result) => {
+			modal.setContent(
+				success.render({
+					order: appState.getOrder(),
+					total: result.total,
+				})
+			);
 
-		api
-			.orderProducts(order)
-			.then((result) => {
-				modal.setContent(
-					success.render({
-						order: appState.getOrder(),
-						total: result.total,
-					})
-				);
-
-				appState.clearBasket();
-				appState.clearOrder();
-			})
-			.catch((error) => {
-				console.error('Ошибка при оформлении заказа:', error);
-			});
-	}
+			appState.clearBasket();
+			appState.clearOrder();
+		})
+		.catch((error) => {
+			console.error('Ошибка при оформлении заказа:', error);
+		});
 });
 
 events.on('success:continue', () => {

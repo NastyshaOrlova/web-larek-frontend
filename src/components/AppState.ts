@@ -126,7 +126,7 @@ export class AppState extends Model<IAppState> {
 		}
 
 		if (!this.order.payment) {
-			errors.payment = '';
+			errors.payment = 'Необходимо выбрать способ оплаты';
 		}
 
 		if (!this.order.email || !this.order.phone) {
